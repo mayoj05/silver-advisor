@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Silver Advisor">
+<meta name="theme-color" content="#1a1a1a">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Silver Advisor</title>
+<style>
+:root {
+  --bg: #f7f6f3;
+  --surface: #ffffff;
+  --surface2: #f0efe9;
+  --border: rgba(0,0,0,0.1);
+  --border2: rgba(0,0,0,0.18);
+  --text: #1a1a1a;
+  --text2: #666;
+  --text3: #999;
+  --accent: #1a1a1a;
+  --accent-fg: #fff;
+  --green: #2d6a2d;
+  --green-bg: #eaf3ea;
+  --amber: #7a4e0a;
+  --amber-bg: #fdf3e3;
+  --red: #8b2020;
+  --red-bg: #fdeaea;
+  --blue: #1a4a8a;
+  --blue-bg: #e8f0fb;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#141414;--surface:#1e1e1e;--surface2:#272727;--border:rgba(255,255,255,0.1);
+    --border2:rgba(255,255,255,0.18);--text:#f0f0f0;--text2:#aaa;--text3:#666;
+    --accent:#f0f0f0;--accent-fg:#1a1a1a;--green:#7fc47f;--green-bg:#1a2e1a;
+    --amber:#f0b860;--amber-bg:#2a1e08;--red:#e07070;--red-bg:#2a1010;
+    --blue:#7aa8e8;--blue-bg:#0e1e38;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,sans-serif;font-size:16px}
+#app{height:100%;display:flex;flex-direction:column}
+
+/* NAV BAR */
+.navbar{background:var(--surface);border-bottom:0.5px solid var(--border);padding:calc(var(--safe-top) + 12px) 16px 12px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.navbar-title{font-size:17px;font-weight:600;letter-spacing:-.3px}
+.navbar-sub{font-size:12px;color:var(--text3);margin-top:1px}
+.spot-pill{background:var(--surface2);border:0.5px solid var(--border);border-radius:20px;padding:4px 10px;font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:5px}
+.spot-dot{width:6px;height:6px;border-radius:50%;background:#4caf50;flex-shrink:0}
+.spot-dot.loading{background:var(--amber);animation:pulse 1s infinite}
+.spot-dot.error{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* TAB BAR */
+.tabbar{background:var(--surface);border-top:0.5px solid var(--border);padding:8px 0 calc(var(--safe-bottom) + 8px);display:flex;flex-shrink:0}
+.tab-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;border:none;background:transparent;color:var(--text3);font-size:10px;font-weight:500;padding:4px 0;cursor:pointer;transition:color .15s}
+.tab-btn.active{color:var(--accent)}
+.tab-btn svg{width:24px;height:24px;stroke-width:1.8}
+
+/* SCROLL CONTENT */
+.content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;background:var(--bg)}
+.page{display:none;padding:16px;padding-bottom:24px;min-height:100%}
+.page.active{display:block}
+
+/* CARDS */
+.card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow)}
+.card-title{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px}
+
+/* FORM ELEMENTS */
+.field{margin-bottom:12px}
+.field label{display:block;font-size:13px;font-weight:500;color:var(--text2);margin-bottom:5px}
+.field input,.field select,.field textarea{width:100%;background:var(--surface2);color:var(--text);border:0.5px solid var(--border2);border-radius:var(--radius-sm);padding:11px 12px;font-size:16px;font-family:inherit;-webkit-appearance:none;appearance:none}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--accent);background:var(--surface)}
+.field textarea{min-height:72px;resize:vertical;line-height:1.4}
+.field .hint{font-size:12px;color:var(--text3);margin-top:4px}
+.field .autocalc{font-size:12px;color:var(--green);margin-top:4px;cursor:pointer}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* BUTTONS */
+.btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;border:0.5px solid var(--border2);border-radius:var(--radius-sm);padding:13px;font-size:16px;font-weight:500;cursor:pointer;background:transparent;color:var(--text);font-family:inherit;transition:all .15s;-webkit-appearance:none}
+.btn:active{transform:scale(0.98);opacity:.8}
+.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.btn.danger{color:var(--red);border-color:var(--red)}
+.btn.small{padding:8px 14px;font-size:14px;width:auto}
+.btn.ghost{border-color:transparent;color:var(--text2)}
+
+/* METRICS ROW */
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.metric{background:var(--surface2);border-radius:var(--radius-sm);padding:12px}
+.metric .lbl{font-size:11px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em}
+.metric .val{font-size:22px;font-weight:600;letter-spacing:-.5px}
+.metric .sub{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* RESULT TABLE */
+.result-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border)}
+.result-row:last-child{border-bottom:none}
+.result-row .lbl{font-size:14px;color:var(--text2)}
+.result-row .val{font-size:14px;font-weight:500}
+.result-row.total .lbl,.result-row.total .val{font-size:17px;font-weight:700;color:var(--blue)}
+.result-row.deduct .lbl,.result-row.deduct .val{color:var(--text3)}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:12px;font-weight:600}
+.badge.green{background:var(--green-bg);color:var(--green)}
+.badge.amber{background:var(--amber-bg);color:var(--amber)}
+.badge.red{background:var(--red-bg);color:var(--red)}
+.badge.blue{background:var(--blue-bg);color:var(--blue)}
+
+/* INFO BOXES */
+.info-box{border-radius:var(--radius-sm);padding:12px 14px;font-size:14px;margin-bottom:12px;line-height:1.5}
+.info-box.blue{background:var(--blue-bg);color:var(--blue)}
+.info-box.amber{background:var(--amber-bg);color:var(--amber)}
+.info-box.red{background:var(--red-bg);color:var(--red)}
+.info-box.green{background:var(--green-bg);color:var(--green)}
+
+/* SCENARIO CARDS */
+.scenario-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px}
+.scenario-card{background:var(--surface2);border-radius:var(--radius-sm);padding:10px;text-align:center;border:0.5px solid var(--border)}
+.scenario-card.highlighted{background:var(--blue-bg);border-color:var(--blue)}
+.scenario-card .s-label{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:4px}
+.scenario-card .s-bid{font-size:18px;font-weight:700;color:var(--blue)}
+.scenario-card .s-silver{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* DATABASE LIST */
+.db-item{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start}
+.db-item-photo{width:56px;height:56px;border-radius:8px;object-fit:cover;flex-shrink:0;border:0.5px solid var(--border)}
+.db-item-photo-empty{width:56px;height:56px;border-radius:8px;background:var(--surface2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.db-item-body{flex:1;min-width:0}
+.db-item-title{font-size:15px;font-weight:600;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.db-item-sub{font-size:12px;color:var(--text3);margin-bottom:6px}
+.db-item-pills{display:flex;gap:5px;flex-wrap:wrap}
+.db-item-pill{background:var(--surface2);border:0.5px solid var(--border);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500;color:var(--text2)}
+
+/* PHOTO UPLOAD */
+.photo-upload-area{border:1.5px dashed var(--border2);border-radius:var(--radius-sm);padding:20px;text-align:center;cursor:pointer;color:var(--text3);font-size:14px;background:var(--surface2)}
+.photo-preview{position:relative;display:inline-block}
+.photo-preview img{width:100%;max-height:200px;object-fit:cover;border-radius:var(--radius-sm)}
+.photo-remove{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+/* SETTINGS */
+.setting-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:0.5px solid var(--border)}
+.setting-row:last-child{border-bottom:none}
+.setting-lbl{font-size:15px}
+.setting-sub{font-size:12px;color:var(--text3);margin-top:2px}
+.setting-input{width:100px;text-align:right;background:var(--surface2);border:0.5px solid var(--border2);border-radius:var(--radius-sm);padding:7px 10px;font-size:15px;color:var(--text);font-family:inherit;-webkit-appearance:none}
+
+/* MODAL / LIGHTBOX */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;display:flex;align-items:flex-end}
+.modal-overlay.center{align-items:center;justify-content:center;padding:20px}
+.modal-sheet{background:var(--surface);border-radius:20px 20px 0 0;padding:20px;padding-bottom:calc(var(--safe-bottom) + 20px);width:100%;max-height:90vh;overflow-y:auto}
+.modal-center{background:var(--surface);border-radius:var(--radius);padding:20px;width:100%;max-width:340px}
+.modal-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 16px}
+.modal-title{font-size:17px;font-weight:600;margin-bottom:16px}
+
+/* GOOGLE AUTH */
+.auth-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;text-align:center;min-height:60vh}
+.auth-icon{font-size:48px;margin-bottom:16px}
+.auth-title{font-size:22px;font-weight:700;margin-bottom:8px}
+.auth-sub{font-size:15px;color:var(--text2);margin-bottom:32px;line-height:1.5}
+
+/* EMPTY STATE */
+.empty{text-align:center;padding:40px 20px;color:var(--text3)}
+.empty-icon{font-size:40px;margin-bottom:12px}
+.empty p{font-size:15px;line-height:1.5}
+
+/* SEARCH */
+.search-bar{background:var(--surface2);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;font-size:16px;color:var(--text);width:100%;font-family:inherit;-webkit-appearance:none;margin-bottom:12px}
+.search-bar:focus{outline:none;border-color:var(--accent)}
+
+/* DIVIDER */
+.divider{height:0.5px;background:var(--border);margin:16px 0}
+
+/* TOAST */
+.toast{position:fixed;bottom:calc(var(--safe-bottom) + 80px);left:50%;transform:translateX(-50%);background:var(--accent);color:var(--accent-fg);padding:10px 20px;border-radius:20px;font-size:14px;font-weight:500;z-index:300;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+
+/* SYNC STATUS */
+.sync-status{font-size:12px;color:var(--text3);text-align:center;padding:6px;display:flex;align-items:center;justify-content:center;gap:5px}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Auth screen shown when not signed in -->
+  <div id="auth-screen" style="display:none;flex:1;overflow-y:auto">
+    <div class="auth-screen">
+      <div class="auth-icon">🥈</div>
+      <div class="auth-title">Silver Advisor</div>
+      <div class="auth-sub">Sign in with Google to sync your silver database across all your devices.</div>
+      <button class="btn primary" onclick="signIn()" style="max-width:280px">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"><path d="M15.5 8.5A5 5 0 1 0 12 17h3.5A5 5 0 0 0 15.5 8.5z"/><path d="M12 12h5"/></svg>
+        Sign in with Google
+      </button>
+      <p style="font-size:13px;color:var(--text3);margin-top:20px;line-height:1.6">Your data is stored in your own Google Sheet.<br>Nothing is shared or sold.</p>
+    </div>
+  </div>
+
+  <!-- Main app (shown when signed in) -->
+  <div id="main-app" style="display:none;height:100%;flex-direction:column;display:none">
+    <div class="navbar">
+      <div>
+        <div class="navbar-title">Silver Advisor</div>
+        <div class="navbar-sub" id="user-email"></div>
+      </div>
+      <div class="spot-pill" onclick="openSpotModal()">
+        <div class="spot-dot loading" id="spot-dot"></div>
+        <span id="spot-display">Fetching…</span>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- ADVISOR PAGE -->
+      <div class="page active" id="page-advisor">
+        <div class="card">
+          <div class="card-title">Item lookup</div>
+          <div class="field">
+            <label>Brand</label>
+            <input type="text" id="adv-brand" placeholder="e.g. Reed & Barton" autocomplete="off" autocorrect="off">
+          </div>
+          <div class="field">
+            <label>Model / Pattern <span style="font-weight:400;color:var(--text3)">(optional)</span></label>
+            <input type="text" id="adv-model" placeholder="e.g. Francis I" autocomplete="off" autocorrect="off">
+          </div>
+          <div class="grid2">
+            <div class="field">
+              <label>Gross weight (g)</label>
+              <input type="number" id="adv-weight" placeholder="As-found" inputmode="decimal">
+            </div>
+            <div class="field">
+              <label>Labor estimate (min)</label>
+              <input type="number" id="adv-labor" placeholder="Optional" inputmode="decimal">
+            </div>
+          </div>
+          <button class="btn primary" onclick="runAdvisor()">Get max bid →</button>
+        </div>
+        <div id="advisor-result"></div>
+      </div>
+
+      <!-- LOG PAGE -->
+      <div class="page" id="page-log">
+        <div class="card">
+          <div class="card-title">Log new item</div>
+          <div class="field">
+            <label>Product type</label>
+            <select id="log-type">
+              <option value="">— Select type —</option>
+              <option>Candlestick / Candelabra</option>
+              <option>Bowl</option>
+              <option>Tray / Salver</option>
+              <option>Pitcher / Ewer</option>
+              <option>Tea / Coffee Set</option>
+              <option>Flatware</option>
+              <option>Vase</option>
+              <option>Frame</option>
+              <option>Cup / Goblet</option>
+              <option>Creamer / Sugar Set</option>
+              <option>Compote</option>
+              <option>Centerpiece</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="grid2">
+            <div class="field">
+              <label>Brand *</label>
+              <input type="text" id="log-brand" placeholder="e.g. Gorham" autocorrect="off">
+            </div>
+            <div class="field">
+              <label>Quantity</label>
+              <input type="number" id="log-qty" value="1" min="1" inputmode="numeric">
+            </div>
+          </div>
+          <div class="field">
+            <label>Model / Pattern</label>
+            <input type="text" id="log-model" placeholder="e.g. Chantilly" autocorrect="off">
+          </div>
+          <div class="field">
+            <label>Description</label>
+            <input type="text" id="log-desc" placeholder="e.g. Pair of candlesticks, 10 inch">
+          </div>
+          <div class="grid2">
+            <div class="field">
+              <label>Initial total weight (g) *</label>
+              <input type="number" id="log-gross" placeholder="Gross as-found" inputmode="decimal" oninput="updateAutoCalc()">
+            </div>
+            <div class="field">
+              <label>Total sterling weight (g)</label>
+              <input type="number" id="log-sterling" placeholder="Shell only" inputmode="decimal" oninput="updateAutoCalc()">
+            </div>
+          </div>
+          <div class="field">
+            <label>Actual fine silver (g)</label>
+            <input type="number" id="log-silver" placeholder="Sterling × 92.5%" inputmode="decimal">
+            <div class="autocalc" id="autocalc-hint" style="display:none" onclick="applyAutoCalc()"></div>
+          </div>
+          <div class="field">
+            <label>Labor time (minutes)</label>
+            <input type="number" id="log-labor" placeholder="Time to break down item" inputmode="decimal">
+          </div>
+          <div class="field">
+            <label>Notes</label>
+            <textarea id="log-notes" placeholder="Condition, source, purchase price paid, eBay listing, etc."></textarea>
+          </div>
+          <div class="field">
+            <label>Photo</label>
+            <div id="photo-area">
+              <div class="photo-upload-area" onclick="document.getElementById('photo-input').click()">
+                <div style="font-size:28px;margin-bottom:6px">📷</div>
+                Tap to add photo
+              </div>
+              <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="handlePhoto(event)">
+            </div>
+          </div>
+          <button class="btn primary" onclick="saveItem()" id="save-btn">Save to database</button>
+          <div class="sync-status" id="save-status"></div>
+        </div>
+      </div>
+
+      <!-- DATABASE PAGE -->
+      <div class="page" id="page-db">
+        <input type="search" class="search-bar" placeholder="Search brand, model, type…" id="db-search" oninput="renderDatabase()">
+        <div id="db-list"></div>
+      </div>
+
+      <!-- SETTINGS PAGE -->
+      <div class="page" id="page-settings">
+        <div class="card">
+          <div class="card-title">Silver & payout</div>
+          <div class="setting-row">
+            <div><div class="setting-lbl">Silver purity (%)</div><div class="setting-sub">Sterling = 92.5%</div></div>
+            <input class="setting-input" type="number" id="s-purity" value="92.5" oninput="saveSettings()">
+          </div>
+          <div class="setting-row">
+            <div><div class="setting-lbl">Dealer payout (%)</div><div class="setting-sub">% of fine silver value paid</div></div>
+            <input class="setting-input" type="number" id="s-payout" value="80" oninput="saveSettings()">
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Purchase costs</div>
+          <div class="setting-row">
+            <div><div class="setting-lbl">Purchase tax rate (%)</div><div class="setting-sub">Tax on your purchase price</div></div>
+            <input class="setting-input" type="number" id="s-tax" value="8.25" oninput="saveSettings()">
+          </div>
+          <div class="setting-row">
+            <div><div class="setting-lbl">Shipping cost ($)</div><div class="setting-sub">Per item average</div></div>
+            <input class="setting-input" type="number" id="s-ship" value="15" oninput="saveSettings()">
+          </div>
+          <div class="setting-row">
+            <div><div class="setting-lbl">Labor rate ($/hr)</div><div class="setting-sub">Your hourly value</div></div>
+            <input class="setting-input" type="number" id="s-labor" value="25" oninput="saveSettings()">
+          </div>
+          <div class="setting-row">
+            <div><div class="setting-lbl">Profit margin (%)</div><div class="setting-sub">Target return on investment</div></div>
+            <input class="setting-input" type="number" id="s-profit" value="20" oninput="saveSettings()">
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Spot price override</div>
+          <div class="setting-row">
+            <div><div class="setting-lbl">Manual spot price</div><div class="setting-sub">Leave blank to use live price</div></div>
+            <input class="setting-input" type="number" id="s-spot" placeholder="Auto" oninput="saveSettings()">
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Account</div>
+          <div style="font-size:14px;color:var(--text2);margin-bottom:14px">Signed in as <span id="settings-email" style="color:var(--text);font-weight:500"></span></div>
+          <button class="btn" onclick="exportCSV()">Export database as CSV</button>
+          <div style="height:8px"></div>
+          <button class="btn danger" onclick="signOut()">Sign out</button>
+        </div>
+        <div style="text-align:center;font-size:12px;color:var(--text3);padding:8px 0 16px">Silver Advisor v2.0 · Data stored in your Google Sheet</div>
+      </div>
+    </div>
+
+    <div class="tabbar">
+      <button class="tab-btn active" id="tab-advisor" onclick="switchTab('advisor')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>
+        Advisor
+      </button>
+      <button class="tab-btn" id="tab-log" onclick="switchTab('log')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>
+        Log Item
+      </button>
+      <button class="tab-btn" id="tab-db" onclick="switchTab('db');renderDatabase()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+        Database
+      </button>
+      <button class="tab-btn" id="tab-settings" onclick="switchTab('settings')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Spot modal -->
+<div class="modal-overlay" id="spot-modal" style="display:none" onclick="closeSpotModal()">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Silver spot price</div>
+    <div id="spot-modal-content"></div>
+    <button class="btn" onclick="fetchSpot()" style="margin-bottom:8px">↻ Refresh live price</button>
+    <button class="btn ghost" onclick="closeSpotModal()">Close</button>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div class="modal-overlay center" id="lightbox" style="display:none" onclick="closeLightbox()">
+  <div class="modal-center" onclick="event.stopPropagation()" style="padding:8px">
+    <img id="lightbox-img" src="" style="width:100%;border-radius:var(--radius);display:block">
+    <button class="btn" onclick="closeLightbox()" style="margin-top:8px">Close</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────
+const CLIENT_ID = '804257197271-0vfp0ngc2t761dkl24asolbcmg57ld7s.apps.googleusercontent.com';
+const SHEET_ID  = '1_oSiw9L6D2JsQLKpcHVk1pZT0XGcYl_3F-kjXaiZmOQ';
+const SHEET_TAB = 'Items';
+const SCOPES    = 'https://www.googleapis.com/auth/spreadsheets';
+const HEADERS   = ['ID','Date','ProductType','Brand','Model','Quantity','Description',
+                   'InitialTotalWeight','TotalSterlingWeight','SilverGrams','LaborMins','Notes','PhotoB64'];
+
+// ── STATE ────────────────────────────────────────────────────────────
+let gapi_ready = false, tokenClient = null, accessToken = null;
+let items = [], spotPrice = null, spotLoading = true;
+let settings = {purity:92.5, payout:80, tax:8.25, ship:15, labor:25, profit:20, manualSpot:''};
+let pendingPhotoB64 = '';
+let currentTab = 'advisor';
+
+// ── INIT ─────────────────────────────────────────────────────────────
+window.onload = () => {
+  loadSettings();
+  // Load Google Identity + GAPI
+  const s1 = document.createElement('script');
+  s1.src = 'https://accounts.google.com/gsi/client';
+  s1.onload = initGSI;
+  document.head.appendChild(s1);
+  const s2 = document.createElement('script');
+  s2.src = 'https://apis.google.com/js/api.js';
+  s2.onload = () => gapi.load('client', initGAPI);
+  document.head.appendChild(s2);
+};
+
+function initGSI() {
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: async (resp) => {
+      if (resp.error) { showToast('Sign in failed'); return; }
+      accessToken = resp.access_token;
+      // Get user info
+      try {
+        const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {headers:{Authorization:'Bearer '+accessToken}});
+        const u = await r.json();
+        document.getElementById('user-email').textContent = u.email || '';
+        document.getElementById('settings-email').textContent = u.email || '';
+      } catch(e){}
+      showMain();
+      await ensureSheetHeaders();
+      await loadItems();
+      fetchSpot();
+    }
+  });
+  // Check if we have a stored token
+  const stored = sessionStorage.getItem('sa_token');
+  if (stored) {
+    accessToken = stored;
+    showMain();
+    loadItems();
+    fetchSpot();
+    // Refresh user info
+    fetch('https://www.googleapis.com/oauth2/v3/userinfo', {headers:{Authorization:'Bearer '+accessToken}})
+      .then(r=>r.ok?r.json():Promise.reject())
+      .then(u=>{ document.getElementById('user-email').textContent=u.email||''; document.getElementById('settings-email').textContent=u.email||''; })
+      .catch(()=>{ accessToken=null; sessionStorage.removeItem('sa_token'); showAuth(); });
+  } else {
+    showAuth();
+  }
+}
+
+async function initGAPI() {
+  await gapi.client.init({});
+  gapi_ready = true;
+}
+
+function showAuth() {
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('main-app').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('app').style.flexDirection = 'column';
+}
+function showMain() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('main-app').style.display = 'flex';
+  document.getElementById('main-app').style.flexDirection = 'column';
+  document.getElementById('main-app').style.height = '100%';
+}
+
+function signIn() { tokenClient.requestAccessToken({prompt:'consent'}); }
+function signOut() {
+  if (!confirm('Sign out? Your data stays safe in Google Sheets.')) return;
+  accessToken = null;
+  sessionStorage.removeItem('sa_token');
+  items = [];
+  showAuth();
+}
+
+// ── GOOGLE SHEETS ────────────────────────────────────────────────────
+async function sheetsRequest(method, path, body) {
+  const base = 'https://sheets.googleapis.com/v4/spreadsheets/';
+  const resp = await fetch(base + SHEET_ID + path, {
+    method,
+    headers: {'Authorization':'Bearer '+accessToken, 'Content-Type':'application/json'},
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if (resp.status === 401) { accessToken=null; sessionStorage.removeItem('sa_token'); showAuth(); throw new Error('auth'); }
+  return resp.json();
+}
+
+async function ensureSheetHeaders() {
+  try {
+    const r = await sheetsRequest('GET', `/values/${SHEET_TAB}!A1:M1`);
+    if (!r.values || !r.values[0] || r.values[0][0] !== 'ID') {
+      await sheetsRequest('PUT', `/values/${SHEET_TAB}!A1:M1?valueInputOption=RAW`, {
+        values: [HEADERS]
+      });
+    }
+  } catch(e) {
+    // Sheet tab might not exist; try creating it
+    try {
+      await sheetsRequest('POST', ':batchUpdate', {
+        requests:[{addSheet:{properties:{title:SHEET_TAB}}}]
+      });
+      await sheetsRequest('PUT', `/values/${SHEET_TAB}!A1:M1?valueInputOption=RAW`, {values:[HEADERS]});
+    } catch(e2){}
+  }
+}
+
+async function loadItems() {
+  document.getElementById('save-status').textContent = 'Syncing…';
+  try {
+    const r = await sheetsRequest('GET', `/values/${SHEET_TAB}!A2:M`);
+    const rows = r.values || [];
+    items = rows.map(row => ({
+      id:           row[0]  || '',
+      date:         row[1]  || '',
+      productType:  row[2]  || '',
+      brand:        row[3]  || '',
+      model:        row[4]  || '',
+      quantity:     row[5]  || '1',
+      desc:         row[6]  || '',
+      initialTotalWeight: row[7]  || '',
+      totalSterlingWeight:row[8]  || '',
+      silverGrams:  row[9]  || '',
+      laborMins:    row[10] || '',
+      notes:        row[11] || '',
+      photoB64:     row[12] || ''
+    })).filter(i=>i.id);
+    document.getElementById('save-status').textContent = `${items.length} items synced`;
+    setTimeout(()=>{ document.getElementById('save-status').textContent=''; }, 2000);
+    if (currentTab === 'db') renderDatabase();
+  } catch(e) {
+    document.getElementById('save-status').textContent = 'Sync error — check connection';
+  }
+}
+
+async function appendRow(item) {
+  const row = [item.id,item.date,item.productType,item.brand,item.model,item.quantity,
+    item.desc,item.initialTotalWeight,item.totalSterlingWeight,item.silverGrams,
+    item.laborMins,item.notes,item.photoB64];
+  return sheetsRequest('POST', `/values/${SHEET_TAB}!A:M:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {values:[row]});
+}
+
+async function deleteRow(id) {
+  const r = await sheetsRequest('GET', `/values/${SHEET_TAB}!A:A`);
+  const rows = r.values || [];
+  const idx = rows.findIndex(row=>row[0]===id);
+  if (idx < 1) return;
+  // Delete that row
+  const sheetMeta = await sheetsRequest('GET', '?fields=sheets.properties');
+  const sheetId = sheetMeta.sheets.find(s=>s.properties.title===SHEET_TAB)?.properties?.sheetId ?? 0;
+  await sheetsRequest('POST', ':batchUpdate', {requests:[{deleteDimension:{range:{sheetId,dimension:'ROWS',startIndex:idx,endIndex:idx+1}}}]});
+}
+
+// ── SPOT PRICE ───────────────────────────────────────────────────────
+async function fetchSpot() {
+  if (settings.manualSpot && parseFloat(settings.manualSpot) > 0) {
+    spotPrice = parseFloat(settings.manualSpot);
+    spotLoading = false;
+    updateSpotUI();
+    return;
+  }
+  spotLoading = true;
+  updateSpotUI();
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:200,
+        messages:[{role:'user',content:'What is the current silver spot price per troy ounce in USD? Reply ONLY with JSON: {"price":32.15}'}],
+        tools:[{type:'web_search_20250305',name:'web_search'}]})
+    });
+    const data = await res.json();
+    const txt = data.content.filter(b=>b.type==='text').map(b=>b.text).join('');
+    const parsed = JSON.parse(txt.replace(/```json|```/g,'').trim());
+    if (parsed.price > 1) { spotPrice = parsed.price; spotLoading = false; }
+    else throw new Error();
+  } catch(e) { spotLoading = false; spotPrice = null; }
+  updateSpotUI();
+}
+
+function updateSpotUI() {
+  const dot = document.getElementById('spot-dot');
+  const disp = document.getElementById('spot-display');
+  const sp = getSpotPrice();
+  if (spotLoading) { dot.className='spot-dot loading'; disp.textContent='Fetching…'; }
+  else if (!sp)    { dot.className='spot-dot error';   disp.textContent='No price'; }
+  else             { dot.className='spot-dot';          disp.textContent='$'+sp.toFixed(2)+'/oz'; }
+}
+
+function getSpotPrice() {
+  if (settings.manualSpot && parseFloat(settings.manualSpot)>0) return parseFloat(settings.manualSpot);
+  return spotPrice;
+}
+
+function openSpotModal() {
+  const sp = getSpotPrice();
+  document.getElementById('spot-modal-content').innerHTML = `
+    <div class="metrics" style="margin-bottom:16px">
+      <div class="metric"><div class="lbl">Live spot</div><div class="val">${sp?'$'+sp.toFixed(2):'—'}</div><div class="sub">Per troy oz</div></div>
+      <div class="metric"><div class="lbl">Per gram</div><div class="val">${sp?'$'+(sp/31.1035).toFixed(3):'—'}</div><div class="sub">Fine silver</div></div>
+    </div>
+    <div class="field"><label>Manual override ($/troy oz)</label>
+      <input type="number" id="spot-override" value="${settings.manualSpot}" placeholder="Leave blank for live price" inputmode="decimal" oninput="settings.manualSpot=this.value;saveSettings();fetchSpot()">
+    </div>`;
+  document.getElementById('spot-modal').style.display = 'flex';
+}
+function closeSpotModal() { document.getElementById('spot-modal').style.display='none'; }
+
+// ── CALC ENGINE ──────────────────────────────────────────────────────
+// Tax is on the PURCHASE PRICE, not on dealer proceeds
+function calcBid(silverGrams, laborMins) {
+  const spot = getSpotPrice();
+  if (!spot || !silverGrams) return null;
+  const s = settings;
+  const fineGrams    = silverGrams * (s.purity/100);
+  const fineTroyOz   = fineGrams / 31.1035;
+  const grossValue   = fineTroyOz * spot;
+  const dealerValue  = grossValue * (s.payout/100);
+  const laborCost    = laborMins ? (laborMins/60)*s.labor : 0;
+  const shipping     = parseFloat(s.ship)||0;
+  const taxRate      = s.tax/100;
+  const profitRate   = s.profit/100;
+  // Solve: bid*(1 + taxRate + profitRate) = dealerValue - laborCost - shipping
+  const net     = dealerValue - laborCost - shipping;
+  const maxBid  = net / (1 + taxRate + profitRate);
+  return {
+    fineGrams:   fineGrams.toFixed(2),
+    fineTroyOz:  fineTroyOz.toFixed(3),
+    grossValue:  grossValue.toFixed(2),
+    dealerValue: dealerValue.toFixed(2),
+    laborCost:   laborCost.toFixed(2),
+    shipping:    shipping.toFixed(2),
+    taxOnBid:    (maxBid*taxRate).toFixed(2),
+    profitAmt:   (maxBid*profitRate).toFixed(2),
+    maxBid:      Math.max(0,maxBid).toFixed(2)
+  };
+}
+
+// ── ADVISOR ──────────────────────────────────────────────────────────
+function getBrandStats(brand) {
+  const b = brand.trim().toLowerCase();
+  const matches = items.filter(i=>i.brand.toLowerCase()===b && parseFloat(i.silverGrams)>0);
+  if (!matches.length) return null;
+  const pcts = matches.map(i=>{
+    const sg=parseFloat(i.silverGrams), gw=parseFloat(i.initialTotalWeight)||0;
+    return gw>0?(sg/gw)*100:null;
+  }).filter(v=>v!==null);
+  if (!pcts.length) return null;
+  return {count:matches.length, avg:pcts.reduce((a,b)=>a+b,0)/pcts.length, min:Math.min(...pcts), max:Math.max(...pcts)};
+}
+
+function getModelStats(brand, model) {
+  const b=brand.trim().toLowerCase(), m=model.trim().toLowerCase();
+  const matches = items.filter(i=>i.brand.toLowerCase()===b && i.model.toLowerCase()===m && parseFloat(i.silverGrams)>0);
+  if (!matches.length) return null;
+  const silvers = matches.map(i=>parseFloat(i.silverGrams)).filter(v=>!isNaN(v));
+  const times   = matches.map(i=>parseFloat(i.laborMins||0)).filter(v=>v>0);
+  return {
+    count: matches.length,
+    avg: silvers.reduce((a,b)=>a+b,0)/silvers.length,
+    min: Math.min(...silvers), max: Math.max(...silvers),
+    avgLabor: times.length ? times.reduce((a,b)=>a+b,0)/times.length : null
+  };
+}
+
+function runAdvisor() {
+  const brand  = document.getElementById('adv-brand').value.trim();
+  const model  = document.getElementById('adv-model').value.trim();
+  const weight = parseFloat(document.getElementById('adv-weight').value)||0;
+  const labor  = parseFloat(document.getElementById('adv-labor').value)||0;
+  const sp     = getSpotPrice();
+  const el     = document.getElementById('advisor-result');
+
+  if (!sp) { el.innerHTML='<div class="info-box amber">No spot price available. Tap the price pill to enter manually.</div>'; return; }
+  if (!brand) { el.innerHTML='<div class="info-box amber">Enter a brand name to look up.</div>'; return; }
+
+  const modelStats = model ? getModelStats(brand, model) : null;
+  const brandStats = getBrandStats(brand);
+
+  let html = '';
+  if (modelStats) {
+    const scenarios = [
+      {label:'Min',    sg:modelStats.min, l:labor||(modelStats.avgLabor||30)},
+      {label:'Avg',    sg:modelStats.avg, l:labor||(modelStats.avgLabor||30)},
+      {label:'Max',    sg:modelStats.max, l:labor||(modelStats.avgLabor||30)}
+    ].map(s=>({...s, calc:calcBid(s.sg,s.l)}));
+    html += `<div class="info-box blue">Found <strong>${modelStats.count} record${modelStats.count>1?'s':''}</strong> for ${brand} ${model}. Silver: ${modelStats.min.toFixed(1)}–${modelStats.max.toFixed(1)}g (avg ${modelStats.avg.toFixed(1)}g).${modelStats.avgLabor?' Avg labor: '+Math.round(modelStats.avgLabor)+'min.':''}</div>`;
+    html += renderScenarios(scenarios, 'exact');
+    html += renderBreakdown(scenarios[1].calc, 'Avg scenario breakdown');
+  } else if (brandStats && weight > 0) {
+    const scenarios = [
+      {label:'Min', sg:weight*(brandStats.min/100), pct:brandStats.min.toFixed(1)},
+      {label:'Avg', sg:weight*(brandStats.avg/100), pct:brandStats.avg.toFixed(1)},
+      {label:'Max', sg:weight*(brandStats.max/100), pct:brandStats.max.toFixed(1)}
+    ].map(s=>({...s, calc:calcBid(s.sg, labor||30)}));
+    html += `<div class="info-box amber">No exact model match. Estimating from <strong>${brandStats.count} ${brand}</strong> items. Typical yield: ${brandStats.min.toFixed(1)}–${brandStats.max.toFixed(1)}% of gross weight.</div>`;
+    html += renderScenarios(scenarios, 'brand');
+    html += renderBreakdown(scenarios[1].calc, 'Avg estimate breakdown');
+  } else if (weight > 0) {
+    const sg = weight * 0.30;
+    const c  = calcBid(sg, labor||30);
+    html += `<div class="info-box red">No data for this brand. Using conservative 30% estimate. Log items to improve accuracy.</div>`;
+    html += renderScenarios([{label:'Estimate', sg, calc:c}], 'none');
+    html += renderBreakdown(c, 'Estimate breakdown');
+  } else {
+    html += `<div class="info-box amber">No data found for <strong>${brand}${model?' '+model:''}</strong>. Enter a gross weight for a rough estimate, or log items to build your database.</div>`;
+  }
+  el.innerHTML = html;
+}
+
+function renderScenarios(scenarios, type) {
+  if (scenarios.length === 1) {
+    const c = scenarios[0].calc;
+    if (!c) return '';
+    return `<div class="card"><div class="card-title">${scenarios[0].label}</div>
+      <div class="metrics">
+        <div class="metric"><div class="lbl">Max bid</div><div class="val" style="color:var(--blue)">$${c.maxBid}</div></div>
+        <div class="metric"><div class="lbl">Dealer value</div><div class="val">$${c.dealerValue}</div></div>
+      </div></div>`;
+  }
+  return `<div class="scenario-grid">
+    ${scenarios.map((s,i)=>{
+      const c=s.calc; if(!c) return '';
+      return `<div class="scenario-card${i===1?' highlighted':''}">
+        <div class="s-label">${s.label}${s.pct?' ('+s.pct+'%)':''}</div>
+        <div class="s-bid">$${c.maxBid}</div>
+        <div class="s-silver">${parseFloat(s.sg).toFixed(1)}g Ag</div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function renderBreakdown(c, title) {
+  if (!c) return '';
+  return `<div class="card">
+    <div class="card-title">${title}</div>
+    <div class="result-row"><span class="lbl">Fine silver (${settings.purity}%)</span><span class="val">${c.fineGrams}g / ${c.fineTroyOz} oz</span></div>
+    <div class="result-row"><span class="lbl">Gross silver value</span><span class="val">$${c.grossValue}</span></div>
+    <div class="result-row"><span class="lbl">Dealer payout (${settings.payout}%)</span><span class="val">$${c.dealerValue}</span></div>
+    <div class="result-row deduct"><span class="lbl">− Labor</span><span class="val">−$${c.laborCost}</span></div>
+    <div class="result-row deduct"><span class="lbl">− Shipping</span><span class="val">−$${c.shipping}</span></div>
+    <div class="result-row deduct"><span class="lbl">− Profit (${settings.profit}%)</span><span class="val">−$${c.profitAmt}</span></div>
+    <div class="result-row deduct"><span class="lbl">− Purchase tax (${settings.tax}% on bid)</span><span class="val">−$${c.taxOnBid}</span></div>
+    <div class="result-row total"><span class="lbl">Max eBay bid</span><span class="val">$${c.maxBid}</span></div>
+  </div>`;
+}
+
+// ── LOG ITEM ─────────────────────────────────────────────────────────
+function updateAutoCalc() {
+  const sterling = parseFloat(document.getElementById('log-sterling').value)||0;
+  const hint = document.getElementById('autocalc-hint');
+  if (sterling > 0) {
+    const fine = (sterling * 0.925).toFixed(2);
+    hint.textContent = `Auto: ${fine}g fine silver (${sterling}g × 92.5%) — tap to use`;
+    hint.style.display = 'block';
+    hint.dataset.val = fine;
+  } else { hint.style.display='none'; }
+}
+function applyAutoCalc() {
+  document.getElementById('log-silver').value = document.getElementById('autocalc-hint').dataset.val;
+}
+
+function handlePhoto(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    // Resize to max 800px to keep storage reasonable
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 800;
+      let w=img.width, h=img.height;
+      if(w>MAX||h>MAX){ const r=Math.min(MAX/w,MAX/h); w=Math.round(w*r); h=Math.round(h*r); }
+      const canvas = document.createElement('canvas');
+      canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      pendingPhotoB64 = canvas.toDataURL('image/jpeg', 0.75);
+      document.getElementById('photo-area').innerHTML = `
+        <div class="photo-preview">
+          <img src="${pendingPhotoB64}" onclick="openLightbox('${pendingPhotoB64}')">
+          <button class="photo-remove" onclick="clearPhoto()">✕</button>
+        </div>`;
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function clearPhoto() {
+  pendingPhotoB64 = '';
+  document.getElementById('photo-area').innerHTML = `
+    <div class="photo-upload-area" onclick="document.getElementById('photo-input').click()">
+      <div style="font-size:28px;margin-bottom:6px">📷</div>
+      Tap to add photo
+    </div>
+    <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="handlePhoto(event)">`;
+}
+
+async function saveItem() {
+  const brand = document.getElementById('log-brand').value.trim();
+  const gross  = document.getElementById('log-gross').value;
+  if (!brand || !gross) { showToast('Brand and initial weight required'); return; }
+
+  const btn = document.getElementById('save-btn');
+  btn.textContent = 'Saving…'; btn.disabled = true;
+
+  const item = {
+    id: Date.now().toString(),
+    date: new Date().toLocaleDateString('en-US'),
+    productType: document.getElementById('log-type').value,
+    brand,
+    model:   document.getElementById('log-model').value.trim(),
+    quantity: document.getElementById('log-qty').value || '1',
+    desc:    document.getElementById('log-desc').value.trim(),
+    initialTotalWeight:  gross,
+    totalSterlingWeight: document.getElementById('log-sterling').value,
+    silverGrams: document.getElementById('log-silver').value,
+    laborMins:   document.getElementById('log-labor').value,
+    notes:       document.getElementById('log-notes').value.trim(),
+    photoB64:    pendingPhotoB64
+  };
+
+  try {
+    await appendRow(item);
+    items.unshift(item);
+    showToast('Saved to Google Sheets ✓');
+    // Reset form
+    ['log-type','log-brand','log-model','log-desc','log-gross','log-sterling','log-silver','log-labor','log-notes']
+      .forEach(id=>{ document.getElementById(id).value = id==='log-qty'?'1':''; });
+    document.getElementById('log-qty').value = '1';
+    document.getElementById('autocalc-hint').style.display='none';
+    clearPhoto();
+  } catch(e) { showToast('Save failed — check connection'); }
+
+  btn.textContent = 'Save to database'; btn.disabled = false;
+}
+
+// ── DATABASE ─────────────────────────────────────────────────────────
+function renderDatabase() {
+  const query = (document.getElementById('db-search')?.value||'').toLowerCase();
+  const filtered = items.filter(i=>
+    !query ||
+    i.brand.toLowerCase().includes(query) ||
+    i.model.toLowerCase().includes(query) ||
+    i.productType.toLowerCase().includes(query) ||
+    i.desc.toLowerCase().includes(query)
+  );
+  const el = document.getElementById('db-list');
+  if (!el) return;
+  if (!filtered.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">🔍</div><p>${items.length?'No items match your search.':'No items logged yet.<br>Tap Log Item to add your first.'}</p></div>`;
+    return;
+  }
+  el.innerHTML = filtered.map(i=>{
+    const pct = parseFloat(i.initialTotalWeight)>0&&parseFloat(i.silverGrams)>0
+      ? ((parseFloat(i.silverGrams)/parseFloat(i.initialTotalWeight))*100).toFixed(1)+'%' : '—';
+    return `<div class="db-item">
+      ${i.photoB64
+        ?`<img src="${i.photoB64}" class="db-item-photo" onclick="openLightbox('${i.photoB64}')">`
+        :`<div class="db-item-photo-empty"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>`}
+      <div class="db-item-body">
+        <div class="db-item-title">${i.brand}${i.model?' — '+i.model:''}</div>
+        <div class="db-item-sub">${[i.productType,i.desc,i.date].filter(Boolean).join(' · ')}</div>
+        <div class="db-item-pills">
+          ${i.initialTotalWeight?`<span class="db-item-pill">${i.initialTotalWeight}g gross</span>`:''}
+          ${i.silverGrams?`<span class="db-item-pill">${i.silverGrams}g Ag</span>`:''}
+          ${pct!=='—'?`<span class="db-item-pill">${pct} yield</span>`:''}
+          ${i.laborMins?`<span class="db-item-pill">${i.laborMins}min labor</span>`:''}
+          ${i.quantity&&i.quantity!='1'?`<span class="db-item-pill">×${i.quantity}</span>`:''}
+        </div>
+      </div>
+      <button class="btn danger small" style="flex-shrink:0" onclick="confirmDelete('${i.id}')">✕</button>
+    </div>`;
+  }).join('');
+}
+
+async function confirmDelete(id) {
+  if (!confirm('Delete this item? It will be removed from your Google Sheet.')) return;
+  try {
+    await deleteRow(id);
+    items = items.filter(i=>i.id!==id);
+    renderDatabase();
+    showToast('Item deleted');
+  } catch(e) { showToast('Delete failed — try again'); }
+}
+
+// ── SETTINGS ─────────────────────────────────────────────────────────
+function loadSettings() {
+  const s = localStorage.getItem('silver_settings');
+  if (s) Object.assign(settings, JSON.parse(s));
+  document.getElementById('s-purity').value  = settings.purity;
+  document.getElementById('s-payout').value  = settings.payout;
+  document.getElementById('s-tax').value     = settings.tax;
+  document.getElementById('s-ship').value    = settings.ship;
+  document.getElementById('s-labor').value   = settings.labor;
+  document.getElementById('s-profit').value  = settings.profit;
+  document.getElementById('s-spot').value    = settings.manualSpot||'';
+}
+function saveSettings() {
+  settings.purity  = parseFloat(document.getElementById('s-purity').value)||92.5;
+  settings.payout  = parseFloat(document.getElementById('s-payout').value)||80;
+  settings.tax     = parseFloat(document.getElementById('s-tax').value)||0;
+  settings.ship    = parseFloat(document.getElementById('s-ship').value)||0;
+  settings.labor   = parseFloat(document.getElementById('s-labor').value)||0;
+  settings.profit  = parseFloat(document.getElementById('s-profit').value)||0;
+  settings.manualSpot = document.getElementById('s-spot').value||'';
+  localStorage.setItem('silver_settings', JSON.stringify(settings));
+  fetchSpot();
+}
+
+function exportCSV() {
+  const h = ['Date','Type','Brand','Model','Qty','Description','Initial Weight (g)','Sterling Weight (g)','Silver (g)','% Yield','Labor (min)','Notes'];
+  const rows = items.map(i=>[
+    i.date,i.productType,i.brand,i.model,i.quantity,i.desc,
+    i.initialTotalWeight,i.totalSterlingWeight,i.silverGrams,
+    parseFloat(i.initialTotalWeight)>0&&parseFloat(i.silverGrams)>0
+      ? ((parseFloat(i.silverGrams)/parseFloat(i.initialTotalWeight))*100).toFixed(1) : '',
+    i.laborMins,i.notes
+  ].map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(','));
+  const csv = [h.join(','),...rows].join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download = 'silver_database.csv';
+  a.click();
+}
+
+// ── UI HELPERS ───────────────────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+tab).classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2500);
+}
+
+function openLightbox(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').style.display = 'flex';
+}
+function closeLightbox() { document.getElementById('lightbox').style.display='none'; }
+</script>
+</body>
+</html>
