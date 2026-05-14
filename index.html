@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Silver Advisor">
 <meta name="theme-color" content="#1a1a1a">
-<link rel="manifest" href="/silver-advisor/manifest.json">
+<link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>Silver Advisor</title>
 <style>
@@ -231,8 +231,17 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
           </div>
           <div class="grid2">
             <div class="field">
-              <label>Gross weight (g)</label>
-              <input type="number" id="adv-weight" placeholder="As-found" inputmode="decimal">
+              <label>Quantity</label>
+              <input type="number" id="adv-qty" value="1" min="1" inputmode="numeric">
+            </div>
+            <div class="field">
+              <label>Gross weight (g) <span style="font-weight:400;color:var(--text3)">(optional)</span></label>
+              <input type="number" id="adv-weight" placeholder="Leave blank if unknown" inputmode="decimal">
+            </div>
+            <div class="field">
+              <label>Shipping cost ($)</label>
+              <input type="number" id="adv-ship" placeholder="From eBay listing" inputmode="decimal">
+              <div class="hint">Overrides default in settings</div>
             </div>
             <div class="field">
               <label>Labor estimate (min)</label>
@@ -648,7 +657,7 @@ function closeSpotModal() { document.getElementById('spot-modal').style.display=
 
 // ── CALC ENGINE ──────────────────────────────────────────────────────
 // Tax is on the PURCHASE PRICE, not on dealer proceeds
-function calcBid(silverGrams, laborMins) {
+function calcBid(silverGrams, laborMins, overrideShipping) {
   const spot = getSpotPrice();
   if (!spot || !silverGrams) return null;
   const s = settings;
@@ -657,7 +666,7 @@ function calcBid(silverGrams, laborMins) {
   const grossValue   = fineTroyOz * spot;
   const dealerValue  = grossValue * (s.payout/100);
   const laborCost    = laborMins ? (laborMins/60)*s.labor : 0;
-  const shipping     = parseFloat(s.ship)||0;
+  const shipping     = (overrideShipping !== null && overrideShipping !== undefined) ? overrideShipping : (parseFloat(s.ship)||0);
   const taxRate      = s.tax/100;
   const profitRate   = s.profit/100;
   // Solve: bid*(1 + taxRate + profitRate) = dealerValue - laborCost - shipping
@@ -708,6 +717,9 @@ function runAdvisor() {
   const model  = document.getElementById('adv-model').value.trim();
   const weight = parseFloat(document.getElementById('adv-weight').value)||0;
   const labor  = parseFloat(document.getElementById('adv-labor').value)||0;
+  const qty    = Math.max(1, parseInt(document.getElementById('adv-qty').value)||1);
+  const shipEl = document.getElementById('adv-ship').value;
+  const overrideShip = shipEl !== '' ? parseFloat(shipEl)||0 : null;
   const sp     = getSpotPrice();
   const el     = document.getElementById('advisor-result');
 
@@ -717,44 +729,53 @@ function runAdvisor() {
   const modelStats = model ? getModelStats(brand, model) : null;
   const brandStats = getBrandStats(brand);
 
+  // Helper: scale silver by qty, labor by qty, shipping is total (already per listing)
+  const bid = (sg, lMins) => calcBid(sg * qty, lMins * qty, overrideShip !== null ? overrideShip : undefined);
+
   let html = '';
   if (modelStats) {
+    // Database records are per-item; scale by qty
     const scenarios = [
-      {label:'Min',    sg:modelStats.min, l:labor||(modelStats.avgLabor||30)},
-      {label:'Avg',    sg:modelStats.avg, l:labor||(modelStats.avgLabor||30)},
-      {label:'Max',    sg:modelStats.max, l:labor||(modelStats.avgLabor||30)}
-    ].map(s=>({...s, calc:calcBid(s.sg,s.l)}));
-    html += `<div class="info-box blue">Found <strong>${modelStats.count} record${modelStats.count>1?'s':''}</strong> for ${brand} ${model}. Silver: ${modelStats.min.toFixed(1)}–${modelStats.max.toFixed(1)}g (avg ${modelStats.avg.toFixed(1)}g).${modelStats.avgLabor?' Avg labor: '+Math.round(modelStats.avgLabor)+'min.':''}</div>`;
-    html += renderScenarios(scenarios, 'exact');
-    html += renderBreakdown(scenarios[1].calc, 'Avg scenario breakdown');
+      {label:'Min', sg:modelStats.min, l:labor||(modelStats.avgLabor||30)},
+      {label:'Avg', sg:modelStats.avg, l:labor||(modelStats.avgLabor||30)},
+      {label:'Max', sg:modelStats.max, l:labor||(modelStats.avgLabor||30)}
+    ].map(s=>({...s, calc:bid(s.sg, s.l)}));
+    const qtyNote = qty > 1 ? ` <strong>×${qty} items</strong>` : '';
+    html += `<div class="info-box blue">Found <strong>${modelStats.count} record${modelStats.count>1?'s':''}</strong> for ${brand} ${model}.${qtyNote} Silver per item: ${modelStats.min.toFixed(1)}–${modelStats.max.toFixed(1)}g (avg ${modelStats.avg.toFixed(1)}g).${modelStats.avgLabor?' Avg labor: '+Math.round(modelStats.avgLabor)+'min each.':''}</div>`;
+    html += renderScenarios(scenarios, 'exact', qty);
+    html += renderBreakdown(scenarios[1].calc, 'Avg scenario breakdown', qty, overrideShip);
   } else if (brandStats && weight > 0) {
+    const weightPerItem = weight / qty;
     const scenarios = [
-      {label:'Min', sg:weight*(brandStats.min/100), pct:brandStats.min.toFixed(1)},
-      {label:'Avg', sg:weight*(brandStats.avg/100), pct:brandStats.avg.toFixed(1)},
-      {label:'Max', sg:weight*(brandStats.max/100), pct:brandStats.max.toFixed(1)}
-    ].map(s=>({...s, calc:calcBid(s.sg, labor||30)}));
-    html += `<div class="info-box amber">No exact model match. Estimating from <strong>${brandStats.count} ${brand}</strong> items. Typical yield: ${brandStats.min.toFixed(1)}–${brandStats.max.toFixed(1)}% of gross weight.</div>`;
-    html += renderScenarios(scenarios, 'brand');
-    html += renderBreakdown(scenarios[1].calc, 'Avg estimate breakdown');
+      {label:'Min', sg:weightPerItem*(brandStats.min/100), pct:brandStats.min.toFixed(1)},
+      {label:'Avg', sg:weightPerItem*(brandStats.avg/100), pct:brandStats.avg.toFixed(1)},
+      {label:'Max', sg:weightPerItem*(brandStats.max/100), pct:brandStats.max.toFixed(1)}
+    ].map(s=>({...s, calc:bid(s.sg, labor||30)}));
+    const qtyNote = qty > 1 ? ` ×${qty} items` : '';
+    html += `<div class="info-box amber">No exact model match. Estimating from <strong>${brandStats.count} ${brand}</strong> items${qtyNote}. Typical yield: ${brandStats.min.toFixed(1)}–${brandStats.max.toFixed(1)}% of gross weight.</div>`;
+    html += renderScenarios(scenarios, 'brand', qty);
+    html += renderBreakdown(scenarios[1].calc, 'Avg estimate breakdown', qty, overrideShip);
   } else if (weight > 0) {
-    const sg = weight * 0.30;
-    const c  = calcBid(sg, labor||30);
+    const weightPerItem = weight / qty;
+    const sg = weightPerItem * 0.30;
+    const c  = bid(sg, labor||30);
     html += `<div class="info-box red">No data for this brand. Using conservative 30% estimate. Log items to improve accuracy.</div>`;
-    html += renderScenarios([{label:'Estimate', sg, calc:c}], 'none');
-    html += renderBreakdown(c, 'Estimate breakdown');
+    html += renderScenarios([{label:'Estimate', sg, calc:c}], 'none', qty);
+    html += renderBreakdown(c, 'Estimate breakdown', qty, overrideShip);
   } else {
     html += `<div class="info-box amber">No data found for <strong>${brand}${model?' '+model:''}</strong>. Enter a gross weight for a rough estimate, or log items to build your database.</div>`;
   }
   el.innerHTML = html;
 }
 
-function renderScenarios(scenarios, type) {
+function renderScenarios(scenarios, type, qty) {
+  qty = qty || 1;
   if (scenarios.length === 1) {
     const c = scenarios[0].calc;
     if (!c) return '';
-    return `<div class="card"><div class="card-title">${scenarios[0].label}</div>
+    return `<div class="card"><div class="card-title">${scenarios[0].label}${qty>1?' — '+qty+' items':''}</div>
       <div class="metrics">
-        <div class="metric"><div class="lbl">Max bid</div><div class="val" style="color:var(--blue)">$${c.maxBid}</div></div>
+        <div class="metric"><div class="lbl">Max bid${qty>1?' (total)':''}</div><div class="val" style="color:var(--blue)">$${c.maxBid}</div></div>
         <div class="metric"><div class="lbl">Dealer value</div><div class="val">$${c.dealerValue}</div></div>
       </div></div>`;
   }
@@ -764,24 +785,27 @@ function renderScenarios(scenarios, type) {
       return `<div class="scenario-card${i===1?' highlighted':''}">
         <div class="s-label">${s.label}${s.pct?' ('+s.pct+'%)':''}</div>
         <div class="s-bid">$${c.maxBid}</div>
-        <div class="s-silver">${parseFloat(s.sg).toFixed(1)}g Ag</div>
+        <div class="s-silver">${(parseFloat(s.sg)*qty).toFixed(1)}g Ag${qty>1?' total':''}</div>
       </div>`;
     }).join('')}
   </div>`;
 }
 
-function renderBreakdown(c, title) {
+function renderBreakdown(c, title, qty, overrideShip) {
   if (!c) return '';
+  qty = qty || 1;
+  const shipLabel = overrideShip !== null && overrideShip !== undefined ? '− Shipping (from listing)' : `− Shipping (default)`;
+  const qtyLabel  = qty > 1 ? ` (${qty} items)` : '';
   return `<div class="card">
     <div class="card-title">${title}</div>
-    <div class="result-row"><span class="lbl">Fine silver (${settings.purity}%)</span><span class="val">${c.fineGrams}g / ${c.fineTroyOz} oz</span></div>
+    <div class="result-row"><span class="lbl">Fine silver${qtyLabel}</span><span class="val">${c.fineGrams}g / ${c.fineTroyOz} oz</span></div>
     <div class="result-row"><span class="lbl">Gross silver value</span><span class="val">$${c.grossValue}</span></div>
     <div class="result-row"><span class="lbl">Dealer payout (${settings.payout}%)</span><span class="val">$${c.dealerValue}</span></div>
-    <div class="result-row deduct"><span class="lbl">− Labor</span><span class="val">−$${c.laborCost}</span></div>
-    <div class="result-row deduct"><span class="lbl">− Shipping</span><span class="val">−$${c.shipping}</span></div>
+    <div class="result-row deduct"><span class="lbl">− Labor${qtyLabel}</span><span class="val">−$${c.laborCost}</span></div>
+    <div class="result-row deduct"><span class="lbl">${shipLabel}</span><span class="val">−$${c.shipping}</span></div>
     <div class="result-row deduct"><span class="lbl">− Profit (${settings.profit}%)</span><span class="val">−$${c.profitAmt}</span></div>
     <div class="result-row deduct"><span class="lbl">− Purchase tax (${settings.tax}% on bid)</span><span class="val">−$${c.taxOnBid}</span></div>
-    <div class="result-row total"><span class="lbl">Max eBay bid</span><span class="val">$${c.maxBid}</span></div>
+    <div class="result-row total"><span class="lbl">Max eBay bid${qty>1?' (total listing)':''}</span><span class="val">$${c.maxBid}</span></div>
   </div>`;
 }
 
@@ -986,4 +1010,3 @@ function closeLightbox() { document.getElementById('lightbox').style.display='no
 </script>
 </body>
 </html>
-
